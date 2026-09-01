@@ -6,6 +6,7 @@
 #include "Licence.h"
 #include "RootMenuConfig.h"
 #include "Translations.h"
+#include "ModEvent.h"
 
 SKSEPluginLoad(const SKSE::LoadInterface* skse) {
     SetupLog();
@@ -22,6 +23,11 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse) {
     SKSE::GetMessagingInterface()->RegisterListener([](SKSE::MessagingInterface::Message* m) {
         if (m->type == SKSE::MessagingInterface::kPostPostLoad) {
             Hooks::ConnectVRHelper();
+        }
+        // The mod callback source only exists once the game's event sources are
+        // up, so sink it at kDataLoaded rather than during plugin load.
+        if (m->type == SKSE::MessagingInterface::kDataLoaded) {
+            ModEvent::Install();
         }
     });
     Config::Init();
