@@ -1,0 +1,57 @@
+name: build
+
+# Fork-only helper: produces a testable DLL so changes can be tried in game
+# without a local Windows toolchain. Drop this file before opening a PR upstream.
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Point CMake at the runner's vcpkg
+        shell: pwsh
+        run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
+
+      - name: Cache vcpkg binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/AppData/Local/vcpkg/archives
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: vcpkg-${{ runner.os }}-
+
+      - name: Configure
+        shell: pwsh
+        run: cmake --preset release
+
+      - name: Build
+        shell: pwsh
+        run: cmake --build build/release --config Release
+
+      - name: Collect the plugin
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/SKSE/Plugins | Out-Null
+          Get-ChildItem -Recurse -Path build/release -Include *.dll,*.pdb |
+            Where-Object { $_.Name -like 'SKSEMenuFramework*' } |
+            Copy-Item -Destination dist/SKSE/Plugins
+          Get-ChildItem -Recurse dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SKSEMenuFramework-${{ github.sha }}
+          path: dist
+          if-no-files-found: error
