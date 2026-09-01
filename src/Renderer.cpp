@@ -24,6 +24,7 @@ bool UI::Renderer::ProcessOpenClose(RE::InputEvent* const* evns) {
 
             if (WindowManager::MainInterface->IsOpen.load() && a_event->IsDown()) {
                 WindowManager::Close();
+                return true;
             } else {
 
                 if (temp_device == RE::INPUT_DEVICE::kKeyboard) {
@@ -46,7 +47,23 @@ bool UI::Renderer::ProcessOpenClose(RE::InputEvent* const* evns) {
                 }
 
             }
+
+            if (Config::ConsumeToggleKey && a_event->IsDown()) {
+                return true;
+            }
         }
+
+        // Escape closes on keyboard; give the gamepad the same courtesy, or the
+        // only way out is the toggle key.
+        if (temp_device == RE::INPUT_DEVICE::kGamepad &&
+            a_event->GetIDCode() ==
+                static_cast<std::uint32_t>(RE::BSWin32GamepadDevice::Key::kBack) &&
+            a_event->IsDown()) {
+            const bool hasChanged = WindowManager::MainInterface->IsOpen.load();
+            WindowManager::Close();
+            return hasChanged;
+        }
+
         if (a_event->GetIDCode() == REX::W32::DIK_ESCAPE && temp_device == RE::INPUT_DEVICE::kKeyboard) {
             bool hasChanged = WindowManager::MainInterface->IsOpen.load();
             WindowManager::Close();
